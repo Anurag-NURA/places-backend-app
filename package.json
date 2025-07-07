@@ -1,0 +1,23 @@
+{
+  "name": "restapi",
+  "module": "src/index.ts",
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.7"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "zod": "^3.25.67"
+  }
+}
