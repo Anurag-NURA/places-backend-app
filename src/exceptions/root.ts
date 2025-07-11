@@ -1,15 +1,15 @@
 // message, status code, error codes, error
 export class HttpException extends Error {
   public message: string;
-  public errorCodes?: number;
+  public errorCodes: number;
   public statusCode: number;
-  public errors?: ErrorCode;
+  public errors: ErrorCode;
 
   constructor(
     message: string,
     statusCode: number = 500,
-    errorCodes?: number,
-    errors?: ErrorCode
+    errorCodes: number,
+    errors: ErrorCode
   ) {
     super(message);
     this.message = message;

@@ -1,16 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
-import { randomUUIDv7 } from "bun";
 
 import prisma from "../config/db.config.ts";
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
-import {
-  UserSchema,
-  type User,
-  updateUserSchema,
-  type UpdateUser,
-} from "../models/user.types.ts";
-import { success } from "zod/v4";
+import { formatZodError } from "../utils/formatZodError.ts";
+import { UserSchema, SignUpSchema } from "../schema/user.types.ts";
+import type { User } from "../schema/user.types.ts";
 
 const DUMMY_USERS = [
   {
@@ -57,7 +52,7 @@ export const getAllUsers = (
   }
 };
 
-export const register = async (
+export const SignUp = async (
   req: Request<{
     name: string;
     email: string;
@@ -75,12 +70,11 @@ export const register = async (
     });
 
     if (!parsed.success) {
-      console.log(parsed.error);
       throw new BadRequestException(
         "Invalid request body",
         400,
         ErrorCode.INVALID_REQUEST_BODY,
-        parsed.error
+        formatZodError(parsed.error)
       );
     }
 
@@ -98,7 +92,6 @@ export const register = async (
 
     const newUser: User = await prisma.user.create({
       data: {
-        id: randomUUIDv7(),
         name,
         email,
         password,

@@ -8,8 +8,8 @@ import type {
   CreatePlaceBody,
 } from "../interfaces/places.interface.ts";
 
-import type { PlaceSchema, UpdatePlaceSchema } from "../models/place.types.ts";
-import { placeSchema, updatePlaceSchema } from "../models/place.types.ts";
+import type { PlaceSchema, UpdatePlaceSchema } from "../schema/place.types.ts";
+import { placeSchema, updatePlaceSchema } from "../schema/place.types.ts";
 
 const DUMMY_PLACES = [
   {
