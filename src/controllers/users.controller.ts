@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { randomUUIDv7 } from "bun";
 
+import prisma from "../config/db.config.ts";
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
 import {
@@ -9,6 +10,7 @@ import {
   updateUserSchema,
   type UpdateUser,
 } from "../models/user.types.ts";
+import { success } from "zod/v4";
 
 const DUMMY_USERS = [
   {
@@ -55,7 +57,7 @@ export const getAllUsers = (
   }
 };
 
-export const register = (
+export const register = async (
   req: Request<{
     name: string;
     email: string;
@@ -74,10 +76,17 @@ export const register = (
 
     if (!parsed.success) {
       console.log(parsed.error);
-      throw parsed.error;
+      throw new BadRequestException(
+        "Invalid request body",
+        400,
+        ErrorCode.INVALID_REQUEST_BODY,
+        parsed.error
+      );
     }
 
-    const existingUser = DUMMY_USERS.find((user) => user.email === email);
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email },
+    });
 
     if (existingUser) {
       throw new BadRequestException(
@@ -87,16 +96,18 @@ export const register = (
       );
     }
 
-    const newUser: User = {
-      id: randomUUIDv7(),
-      name,
-      email,
-      password,
-    };
-
-    DUMMY_USERS.push(newUser);
+    const newUser: User = await prisma.user.create({
+      data: {
+        id: randomUUIDv7(),
+        name,
+        email,
+        password,
+        createdAt: new Date(),
+      },
+    });
 
     res.status(201).json({
+      success: true,
       message: "User registered successfully",
       user: newUser,
     });
@@ -131,7 +142,12 @@ export const login = (
 
     if (!parsed.success) {
       console.log(parsed.error);
-      throw new CustomError("Invalid user data", 400);
+      throw new BadRequestException(
+        "Invalid request body",
+        400,
+        ErrorCode.INVALID_REQUEST_BODY,
+        parsed.error
+      );
     }
 
     const user = DUMMY_USERS.find(

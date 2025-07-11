@@ -4,17 +4,19 @@
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/server.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/express": "^5.0.3",
-    "@types/node": "^24.0.7"
+    "@types/node": "^24.0.7",
+    "prisma": "^6.11.1"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
+    "@prisma/client": "^6.11.1",
     "body-parser": "^2.2.0",
     "dotenv": "^17.0.0",
     "express": "^5.1.0",
