@@ -1,15 +1,15 @@
 // message, status code, error codes, error
 export class HttpException extends Error {
   public message: string;
-  public errorCodes: number;
   public statusCode: number;
-  public errors: ErrorCode;
+  public errorCodes: ErrorCode;
+  public errors: any;
 
   constructor(
     message: string,
     statusCode: number = 500,
-    errorCodes: number,
-    errors: ErrorCode
+    errorCodes: ErrorCode = ErrorCode.UNKNOWN_ERROR,
+    errors: any
   ) {
     super(message);
     this.message = message;
@@ -25,6 +25,7 @@ export enum ErrorCode {
   USER_ALREADY_EXISTS = 1002,
   INCORRECT_PASSWORD = 1003,
   INVALID_USER_ID = 1004,
+  NO_USERS_FOUND = 1005,
 
   // ==== PLACE-RELATED ERRORS (1100–1199) ====
   PLACE_NOT_FOUND = 1101,
@@ -49,4 +50,7 @@ export enum ErrorCode {
   INTERNAL_SERVER_ERROR = 1400,
   DATABASE_ERROR = 1401,
   UNKNOWN_ERROR = 1402,
+
+  // ==== ROUTE NOT FOUND (1500) ====
+  ROUTE_NOT_FOUND = 1500,
 }

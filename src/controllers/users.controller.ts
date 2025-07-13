@@ -4,70 +4,56 @@ import prisma from "../config/db.config.ts";
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
 import { formatZodError } from "../utils/formatZodError.ts";
-import { UserSchema, SignUpSchema } from "../schema/user.types.ts";
-import type { User } from "../schema/user.types.ts";
 
-const DUMMY_USERS = [
-  {
-    id: "u1",
-    name: "John Doe",
-    email: "johndoe@email.com",
-    password: "password123",
-  },
-  {
-    id: "u2",
-    name: "Jane Smith",
-    email: "janesmith@email.com",
-    password: "password456",
-  },
-  {
-    id: "u3",
-    name: "Alice Johnson",
-    email: "alicejohnson@email.com",
-    password: "password789",
-  },
-];
+import {
+  SignUpSchema,
+  type SignInType,
+  type UserType,
+  type SignUpType,
+  type ErrorResponse,
+  SignInSchema,
+} from "../schema/index.ts";
 
-export const getAllUsers = (
+export const getAllUsers = async (
   req: Request,
-  res: Response<{
-    message: string;
-    users?: User[];
-  }>,
+  res: Response<
+    { success: boolean; message: string; users: UserType[] } | ErrorResponse
+  >,
   next: NextFunction
 ) => {
   try {
-    if (!DUMMY_USERS || DUMMY_USERS.length === 0) {
+    const users = await prisma.user.findMany();
+
+    if (!users || users.length === 0) {
       throw new BadRequestException(
         "No users found",
         404,
-        ErrorCode.USER_NOT_FOUND
+        ErrorCode.NO_USERS_FOUND
       );
     }
-    res
-      .status(200)
-      .json({ message: "Users fetched successfully", users: DUMMY_USERS });
+
+    res.status(200).json({
+      success: true,
+      message: "Users retrieved successfully",
+      users: users,
+    });
   } catch (error) {
     next(error);
   }
 };
 
-export const SignUp = async (
-  req: Request<{
-    name: string;
-    email: string;
-    password: string;
+export const register = async (
+  req: Request<SignUpType>,
+  res: Response<{
+    success: boolean;
+    message: string;
+    user?: UserType;
   }>,
-  res: Response,
   next: NextFunction
 ) => {
   try {
     const { name, email, password } = req.body;
-    const parsed = UserSchema.omit({ id: true }).safeParse({
-      name,
-      email,
-      password,
-    });
+    const parsed = SignUpSchema.safeParse(req.body);
 
     if (!parsed.success) {
       throw new BadRequestException(
@@ -90,7 +76,7 @@ export const SignUp = async (
       );
     }
 
-    const newUser: User = await prisma.user.create({
+    const newUser: UserType = await prisma.user.create({
       data: {
         name,
         email,
@@ -109,15 +95,9 @@ export const SignUp = async (
   }
 };
 
-export const login = (
-  req: Request<{
-    email: string;
-    password: string;
-  }>,
-  res: Response<{
-    message: string;
-    user?: User;
-  }>,
+export const login = async (
+  req: Request<SignInType>,
+  res: Response<{ success: boolean; message: string } | ErrorResponse>,
   next: NextFunction
 ) => {
   try {
@@ -131,31 +111,39 @@ export const login = (
       );
     }
 
-    const parsed = UserSchema.omit({ id: true }).safeParse(req.body);
+    const parsed = SignInSchema.safeParse(req.body);
 
     if (!parsed.success) {
-      console.log(parsed.error);
+      console.log(formatZodError(parsed.error));
       throw new BadRequestException(
         "Invalid request body",
         400,
         ErrorCode.INVALID_REQUEST_BODY,
-        parsed.error
+        formatZodError(parsed.error)
       );
     }
 
-    const user = DUMMY_USERS.find(
-      (u) => u.email === email && u.password === password
-    );
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
 
     if (!user) {
       throw new BadRequestException(
-        "Invalid email or password",
+        "User not found with this email",
+        401,
+        ErrorCode.USER_NOT_FOUND
+      );
+    }
+
+    if (user.password !== password) {
+      throw new BadRequestException(
+        "Incorrect password",
         401,
         ErrorCode.INCORRECT_PASSWORD
       );
     }
 
-    res.status(200).json({ message: "Login successful", user });
+    res.status(200).json({ success: true, message: "Login successful" });
   } catch (error) {
     next(error);
   }
