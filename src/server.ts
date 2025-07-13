@@ -9,6 +9,7 @@ import placesRoutes from "./routes/places.routes.ts";
 
 import { errorMiddleware } from "./middlewares/error.middleware.ts";
 import { BadRequestException } from "./exceptions/bad-requests.ts";
+import { ErrorCode } from "./exceptions/root.ts";
 
 const app: Express = express();
 
@@ -20,9 +21,14 @@ app.use("/api/places", placesRoutes);
 
 // Catch-all route for undefined routes
 app.use((req: Request, res: Response, next: express.NextFunction) => {
-  const error = new BadRequestException("Route not found", 404, undefined, {
-    route: req.originalUrl,
-  });
+  const error = new BadRequestException(
+    "Route not found",
+    404,
+    ErrorCode.ROUTE_NOT_FOUND,
+    {
+      route: req.originalUrl,
+    }
+  );
   next(error);
 });
 

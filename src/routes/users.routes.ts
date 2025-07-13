@@ -2,8 +2,8 @@ import express from "express";
 
 import {
   getAllUsers,
-  register,
   login,
+  register,
 } from "../controllers/users.controller.ts";
 
 const router = express.Router();
