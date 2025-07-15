@@ -12,7 +12,7 @@ import {
   type SignUpType,
   type ErrorResponse,
   SignInSchema,
-} from "../schema/index.ts";
+} from "../types/index.ts";
 
 export const getAllUsers = async (
   req: Request,
@@ -43,12 +43,10 @@ export const getAllUsers = async (
 };
 
 export const register = async (
-  req: Request<SignUpType>,
-  res: Response<{
-    success: boolean;
-    message: string;
-    user?: UserType;
-  }>,
+  req: Request<{}, {}, SignUpType>,
+  res: Response<
+    { success: boolean; message: string; user: UserType } | ErrorResponse
+  >,
   next: NextFunction
 ) => {
   try {
@@ -96,7 +94,7 @@ export const register = async (
 };
 
 export const login = async (
-  req: Request<SignInType>,
+  req: Request<{}, {}, SignInType>,
   res: Response<{ success: boolean; message: string } | ErrorResponse>,
   next: NextFunction
 ) => {
