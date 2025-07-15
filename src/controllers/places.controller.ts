@@ -1,68 +1,38 @@
 import type { Request, Response, NextFunction } from "express";
 
+import prisma from "../config/db.config.ts";
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
-import type {
-  PlaceParams,
-  PlacesByUserIdParams,
-  CreatePlaceBody,
-} from "../interfaces/places.interface.ts";
+import { formatZodError } from "../utils/formatZodError.ts";
 
-import type { PlaceSchema, UpdatePlaceSchema } from "../schema/place.types.ts";
-import { placeSchema, updatePlaceSchema } from "../schema/place.types.ts";
+import {
+  placeSchema,
+  updatePlaceSchema,
+  type PlaceSchema,
+  type UpdatePlaceSchema,
+  type ErrorResponse,
+} from "../types/index.ts";
 
-const DUMMY_PLACES = [
-  {
-    id: "p1",
-    name: "Central Park",
-    description: "A large public park in New York City.",
-    location: {
-      lat: 40.785091,
-      lng: -73.968285,
-    },
-    creator: "u1",
-  },
-  {
-    id: "p2",
-    name: "Statue of Liberty",
-    description: "A colossal neoclassical sculpture on Liberty Island.",
-    location: {
-      lat: 40.689247,
-      lng: -74.044502,
-    },
-    creator: "u2",
-  },
-  {
-    id: "p3 ",
-    name: "Eiffel Tower",
-    description: "An iron lattice tower on the Champ de Mars in Paris.",
-    location: {
-      lat: 48.858844,
-      lng: 2.294351,
-    },
-    creator: "u3",
-  },
-];
-
-export const getAllPlaces = (
+export const getAllPlaces = async (
   req: Request,
-  res: Response<{
-    message: string;
-    places?: PlaceSchema[];
-  }>,
+  res: Response<
+    { success: boolean; message: string; places: PlaceSchema[] } | ErrorResponse
+  >,
   next: NextFunction
 ) => {
   try {
-    const places = DUMMY_PLACES;
+    const places = await prisma.place.findMany();
 
     if (places.length === 0) {
       throw new BadRequestException(
         "No places found",
+        404,
         ErrorCode.PLACE_NOT_FOUND
       );
     }
 
     res.json({
+      success: true,
       message: "Places retrieved successfully",
       places,
     });
@@ -71,21 +41,23 @@ export const getAllPlaces = (
   }
 };
 
-export const placesById = (
-  req: Request<PlaceParams>,
-  res: Response<{
-    message: string;
-    place?: PlaceSchema;
-  }>,
+export const placesById = async (
+  req: Request<{ placeId: string }>,
+  res: Response<
+    { success: boolean; message: string; place: PlaceSchema } | ErrorResponse
+  >,
   next: NextFunction
 ) => {
   try {
     const placeId = req.params.placeId;
 
-    const place = DUMMY_PLACES.find((p) => p.id === placeId);
+    const place = await prisma.place.findUnique({
+      where: { id: placeId },
+    });
 
     if (place) {
       res.json({
+        success: true,
         message: "Place found",
         place,
       });
@@ -101,26 +73,30 @@ export const placesById = (
   }
 };
 
-export const placesByUserId = (
-  req: Request<PlacesByUserIdParams>,
-  res: Response<{
-    message: string;
-    places?: PlaceSchema[];
-  }>,
+export const placesByUserId = async (
+  req: Request<{ userId: string }>,
+  res: Response<
+    { success: boolean; message: string; places: PlaceSchema[] } | ErrorResponse
+  >,
   next: NextFunction
 ) => {
   try {
     const userId = req.params.userId;
-    const place = DUMMY_PLACES.filter((p) => p.creator === userId);
+
+    const place = await prisma.place.findMany({
+      where: { creatorId: userId },
+    });
 
     if (place.length > 0) {
       res.json({
+        success: true,
         message: "Places found for user",
         places: place,
       });
     } else {
       throw new BadRequestException(
         "No places found for the provided userID",
+        404,
         ErrorCode.PLACE_NOT_FOUND
       );
     }
@@ -134,56 +110,67 @@ export const placesByUserId = (
   “This handler cares about a request body, 
   and here’s what it should look like.”
 */
-export const createPlace = (
-  req: Request<{}, {}, CreatePlaceBody>,
+export const createPlace = async (
+  req: Request<{}, {}, PlaceSchema>,
   res: Response<{
+    success: boolean;
     message: string;
-    place: PlaceSchema;
   }>,
   next: NextFunction
 ) => {
   try {
-    const { name, description, location, creator } = req.body;
+    const { name, description, address, longitude, latitude, creatorId } =
+      req.body;
 
-    const parsed = placeSchema.omit({ id: true }).safeParse(req.body);
+    const parsed = placeSchema
+      .omit({ id: true, createdAt: true, updatedAt: true })
+      .safeParse(req.body);
 
     if (!parsed.success) {
       console.log(parsed.error);
       throw new BadRequestException(
         "Invalid place data",
-        ErrorCode.INVALID_REQUEST_BODY
-      );
-    }
-
-    if (!name || !description || !location || !creator) {
-      throw new BadRequestException(
-        "Missing required fields: name, description, location, or creator",
-        ErrorCode.MISSING_REQUIRED_FIELDS
+        400,
+        ErrorCode.INVALID_REQUEST_BODY,
+        formatZodError(parsed.error)
       );
     }
 
     const newPlace = {
-      id: Math.random().toString(),
       name,
       description,
-      location,
-      creator,
+      address: address || null,
+      longitude,
+      latitude,
+      creatorId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
-    DUMMY_PLACES.push(newPlace);
+    const response = await prisma.place.create({
+      data: newPlace,
+    });
+
+    if (!response) {
+      throw new BadRequestException(
+        "Failed to create place",
+        500,
+        ErrorCode.INTERNAL_SERVER_ERROR
+      );
+    }
 
     res.status(201).json({
+      success: true,
       message: "Place created successfully",
-      place: newPlace,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const updatePlace = (
+export const updatePlace = async (
   req: Request<{ placeId: string }, {}, UpdatePlaceSchema>,
-  res: Response,
+  res: Response<{ success: boolean; message: string } | ErrorResponse>,
   next: NextFunction
 ) => {
   try {
@@ -193,62 +180,78 @@ export const updatePlace = (
     const parsed = updatePlaceSchema.safeParse(req.body);
     if (!parsed.success) {
       console.log(parsed.error);
+      throw new BadRequestException(
+        "Invalid update data",
+        400,
+        ErrorCode.INVALID_REQUEST_BODY,
+        formatZodError(parsed.error)
+      );
     }
 
     //If body is valid, check if place exists
-    const placeIndex = DUMMY_PLACES.findIndex((p) => p.id === placeId);
-    if (placeIndex === -1) {
+    const currentPlace = await prisma.place.findUnique({
+      where: { id: placeId },
+    });
+
+    if (!currentPlace) {
       throw new BadRequestException(
         "Place not found with the provided placeID",
+        404,
         ErrorCode.INVALID_PLACE_ID
       );
     }
 
-    //Update the place
-    const existingPlace = DUMMY_PLACES[placeIndex];
-    const update = req.body as UpdatePlaceSchema;
-    const updatedPlace = {
-      ...existingPlace,
-      ...update,
-    };
-    DUMMY_PLACES[placeIndex] = updatedPlace;
+    //Update place with the provided data
+    const updatedPlace = await prisma.place.update({
+      where: { id: placeId },
+      data: {
+        ...parsed.data,
+        updatedAt: new Date(),
+      },
+    });
 
+    //If update fails, throw an error
+    if (!updatedPlace) {
+      throw new BadRequestException(
+        "Failed to update place",
+        500,
+        ErrorCode.INTERNAL_SERVER_ERROR
+      );
+    }
+
+    //If update is successful, send response
     res.json({
+      success: true,
       message: "Place updated successfully",
-      place: updatedPlace,
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const deletePlace = (
+export const deletePlace = async (
   req: Request<{ placeId: string }>,
-  res: Response<{
-    message: string;
-    place?: PlaceSchema;
-  }>,
+  res: Response<{ success: boolean; message: string } | ErrorResponse>,
   next: NextFunction
 ) => {
   try {
     const placeId = req.params.placeId;
 
-    const placeIndex = DUMMY_PLACES.findIndex((p) => p.id === placeId);
-    if (placeIndex === -1) {
+    const response = await prisma.place.delete({
+      where: { id: placeId },
+    });
+
+    if (!response) {
       throw new BadRequestException(
-        "Place not found with the provided placeID",
-        ErrorCode.INVALID_PLACE_ID
+        "Failed to delete place",
+        500,
+        ErrorCode.INTERNAL_SERVER_ERROR
       );
     }
 
-    const deletedPlace = DUMMY_PLACES[placeIndex];
-
-    // Remove the place from the dummy data
-    DUMMY_PLACES.splice(placeIndex, 1);
-
     res.json({
+      success: true,
       message: "Place deleted successfully",
-      place: deletedPlace,
     });
   } catch (error) {
     next(error);
