@@ -53,4 +53,9 @@ export enum ErrorCode {
 
   // ==== ROUTE NOT FOUND (1500) ====
   ROUTE_NOT_FOUND = 1500,
+
+  // ==== FILE UPLOAD ERRORS (1600–1699) ====
+  FILE_UPLOAD_FAILED = 1601,
+  FILE_TOO_LARGE = 1602,
+  UNSUPPORTED_FILE_TYPE = 1603,
 }

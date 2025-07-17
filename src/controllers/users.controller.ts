@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 
 import prisma from "../config/db.config.ts";
+import { uploadOnCloudinary } from "../utils/cloudinary.ts";
+
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
 import { formatZodError } from "../utils/formatZodError.ts";
@@ -43,13 +45,23 @@ export const getAllUsers = async (
 };
 
 export const register = async (
-  req: Request<{}, {}, SignUpType>,
+  req: Request<{}, {}, SignUpType> & { file?: Express.Multer.File },
   res: Response<
     { success: boolean; message: string; user: UserType } | ErrorResponse
   >,
   next: NextFunction
 ) => {
   try {
+    //initialize imageUrl to null
+    let imageUrl: string | null = null;
+
+    if (req.file) {
+      // Get the file path from multer
+      const avatar = req.file.path;
+      // Upload the file to Cloudinary
+      imageUrl = await uploadOnCloudinary(avatar);
+    }
+
     const { name, email, password } = req.body;
     const parsed = SignUpSchema.safeParse(req.body);
 
@@ -79,6 +91,7 @@ export const register = async (
         name,
         email,
         password,
+        image: imageUrl,
         createdAt: new Date(),
       },
     });

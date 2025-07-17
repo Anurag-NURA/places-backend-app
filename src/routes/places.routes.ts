@@ -1,5 +1,6 @@
 import express from "express";
 
+import upload from "../middlewares/multer.middleware";
 import {
   getAllPlaces,
   placesById,
@@ -17,9 +18,9 @@ router.get("/:placeId", placesById);
 
 router.get("/users/:userId", placesByUserId);
 
-router.post("/", createPlace);
+router.post("/", upload.single("image"), createPlace);
 
-router.patch("/:placeId", updatePlace);
+router.patch("/:placeId", upload.single("image"), updatePlace);
 
 router.delete("/:placeId", deletePlace);
 
