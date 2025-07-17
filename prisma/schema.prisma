@@ -20,6 +20,7 @@ model User {
   email     String   @unique
   password  String 
   places   Place[]  
+  image    String?
   createdAt DateTime @default(now())
 }
 
@@ -30,6 +31,7 @@ model Place{
   address  String?
   latitude  Float
   longitude Float
+  image String?
   creator  User     @relation(fields: [creatorId], references: [id])
   creatorId String 
   createdAt DateTime @default(now())

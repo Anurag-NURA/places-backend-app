@@ -1,5 +1,6 @@
 import express from "express";
 
+import upload from "../middlewares/multer.middleware.ts";
 import {
   getAllUsers,
   login,
@@ -10,8 +11,8 @@ const router = express.Router();
 
 router.get("/", getAllUsers);
 
-router.post("/register", register);
+router.route("/register").post(upload.single("avatar"), register);
 
-router.post("/login", login);
+router.post("/login", upload.none(), login);
 
 export default router;

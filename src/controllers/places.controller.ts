@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 
 import prisma from "../config/db.config.ts";
+import { uploadOnCloudinary } from "../utils/cloudinary.ts";
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
 import { formatZodError } from "../utils/formatZodError.ts";
@@ -111,7 +112,7 @@ export const placesByUserId = async (
   and here’s what it should look like.”
 */
 export const createPlace = async (
-  req: Request<{}, {}, PlaceSchema>,
+  req: Request<{}, {}, PlaceSchema> & { file?: Express.Multer.File },
   res: Response<{
     success: boolean;
     message: string;
@@ -119,36 +120,37 @@ export const createPlace = async (
   next: NextFunction
 ) => {
   try {
-    const { name, description, address, longitude, latitude, creatorId } =
-      req.body;
+    let imageUrl: string | null = null;
+    if (req.file) {
+      // Get the file path from multer
+      const image = req.file.path;
+      console.log("Image path from multer:", image);
+      // Upload the file to Cloudinary
+      imageUrl = await uploadOnCloudinary(image);
+      console.log("Image uploaded to Cloudinary:", imageUrl);
+    }
 
-    const parsed = placeSchema
-      .omit({ id: true, createdAt: true, updatedAt: true })
+    const parsedData = placeSchema
+      .omit({ id: true, createdAt: true, updatedAt: true, image: true })
       .safeParse(req.body);
 
-    if (!parsed.success) {
-      console.log(parsed.error);
+    if (!parsedData.success) {
+      console.log(parsedData.error);
       throw new BadRequestException(
         "Invalid place data",
         400,
         ErrorCode.INVALID_REQUEST_BODY,
-        formatZodError(parsed.error)
+        formatZodError(parsedData.error)
       );
     }
 
-    const newPlace = {
-      name,
-      description,
-      address: address || null,
-      longitude,
-      latitude,
-      creatorId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
     const response = await prisma.place.create({
-      data: newPlace,
+      data: {
+        ...parsedData.data,
+        image: imageUrl,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
 
     if (!response) {
