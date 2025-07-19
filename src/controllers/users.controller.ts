@@ -1,7 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
+import { hashSync, compareSync } from "bcryptjs";
 
 import prisma from "../config/db.config.ts";
-import { uploadOnCloudinary } from "../utils/cloudinary.ts";
+import {
+  uploadOnCloudinary,
+  generateAcessToken,
+  generateRefreshToken,
+} from "../utils/index.ts";
 
 import { BadRequestException } from "../exceptions/bad-requests.ts";
 import { ErrorCode } from "../exceptions/root.ts";
@@ -47,7 +52,7 @@ export const getAllUsers = async (
 export const register = async (
   req: Request<{}, {}, SignUpType> & { file?: Express.Multer.File },
   res: Response<
-    { success: boolean; message: string; user: UserType } | ErrorResponse
+    { success: boolean; message: string; accessToken: string } | ErrorResponse
   >,
   next: NextFunction
 ) => {
@@ -62,7 +67,6 @@ export const register = async (
       imageUrl = await uploadOnCloudinary(avatar);
     }
 
-    const { name, email, password } = req.body;
     const parsed = SignUpSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -75,7 +79,7 @@ export const register = async (
     }
 
     const existingUser = await prisma.user.findUnique({
-      where: { email: email },
+      where: { email: parsed.data.email },
     });
 
     if (existingUser) {
@@ -88,18 +92,27 @@ export const register = async (
 
     const newUser: UserType = await prisma.user.create({
       data: {
-        name,
-        email,
-        password,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        password: hashSync(parsed.data.password, 10),
         image: imageUrl,
         createdAt: new Date(),
       },
     });
 
+    const accessToken = generateAcessToken({
+      userId: newUser.id,
+      email: newUser.email,
+    });
+    generateRefreshToken(res, {
+      userId: newUser.id,
+      email: newUser.email,
+    });
+
     res.status(201).json({
       success: true,
       message: "User registered successfully",
-      user: newUser,
+      accessToken,
     });
   } catch (error) {
     next(error);
@@ -108,7 +121,9 @@ export const register = async (
 
 export const login = async (
   req: Request<{}, {}, SignInType>,
-  res: Response<{ success: boolean; message: string } | ErrorResponse>,
+  res: Response<
+    { success: boolean; message: string; accessToken: string } | ErrorResponse
+  >,
   next: NextFunction
 ) => {
   try {
@@ -135,7 +150,7 @@ export const login = async (
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: email },
+      where: { email: parsed.data.email },
     });
 
     if (!user) {
@@ -146,7 +161,7 @@ export const login = async (
       );
     }
 
-    if (user.password !== password) {
+    if (!compareSync(parsed.data.password, user.password)) {
       throw new BadRequestException(
         "Incorrect password",
         401,
@@ -154,7 +169,18 @@ export const login = async (
       );
     }
 
-    res.status(200).json({ success: true, message: "Login successful" });
+    const accessToken = generateAcessToken({
+      userId: user.id,
+      email: user.email,
+    });
+    generateRefreshToken(res, {
+      userId: user.id,
+      email: user.email,
+    });
+
+    res
+      .status(200)
+      .json({ success: true, message: "Login successful", accessToken });
   } catch (error) {
     next(error);
   }
