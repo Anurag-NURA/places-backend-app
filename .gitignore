@@ -1,3 +1,6 @@
+# remove bun lock file
+bun.lockb
+
 # dependencies (bun install)
 node_modules
 

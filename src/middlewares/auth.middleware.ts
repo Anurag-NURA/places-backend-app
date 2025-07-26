@@ -19,11 +19,25 @@ export const verifyJWT = async (
 ) => {
   try {
     //1.extract the token from the Authorization header
-    const token = req.headers.authorization;
+    let token;
+    let authHeader = req.headers.authorization;
+
     //2. if the token is not present, return an UnauthorizedException
+    if (authHeader || authHeader?.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+      // Extract the token from the header
+    } else {
+      // If the Authorization header is not present, throw an UnauthorizedException
+      throw new UnauthorizedException(
+        "Authorization header not provided",
+        ErrorCode.UNAUTHORIZED
+      );
+    }
+
+    //also check if the token is present in the authorization header
     if (!token) {
       throw new UnauthorizedException(
-        "No token provided",
+        "Token not provided",
         ErrorCode.UNAUTHORIZED
       );
     }
