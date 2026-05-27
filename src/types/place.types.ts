@@ -17,7 +17,8 @@ export const placeSchema = z.object({
     message: "Longitude must be between -180 and 180",
   }),
   creatorId: z.string(),
-  image: z.string().url().nullable().optional(),
+  image_secure_url: z.string().url().optional().nullable(),
+  image_public_id: z.string().optional().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
