@@ -27,9 +27,11 @@ class PlacesRepository {
     }
   }
 
-  async create(data: Prisma.PlaceCreateInput) {
+  async create(data: Omit<Prisma.PlaceCreateInput, "creator">, userId: string) {
     try {
-      return await prisma.place.create({ data });
+      return await prisma.place.create({
+        data: { ...data, creator: { connect: { id: userId } } },
+      });
     } catch (error) {
       handlePrismaError(error);
     }

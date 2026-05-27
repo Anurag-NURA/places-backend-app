@@ -19,23 +19,27 @@ export const getPlaceById = async (placeId: string) => {
 };
 
 export const createPlace = async (
+  userId: string,
   data: Prisma.PlaceCreateInput,
   fileBuffer?: Buffer,
 ) => {
   let imageUrl: string | null = null;
   let uploadedPublicId: string | null = null; //track cloudinary public id
-  if (fileBuffer) {
-    const uploaded = await uploadOnCloudinary(fileBuffer);
-    imageUrl = uploaded.secure_url;
-    uploadedPublicId = uploaded.public_id;
-  }
 
   try {
-    const newPlace = await placesRepository.create({
-      ...data,
-      image_secure_url: imageUrl, // Store the secure URL of the uploaded image
-      image_public_id: uploadedPublicId, // Store the public ID for future reference
-    });
+    if (fileBuffer) {
+      const uploaded = await uploadOnCloudinary(fileBuffer);
+      imageUrl = uploaded.secure_url;
+      uploadedPublicId = uploaded.public_id;
+    }
+    const newPlace = await placesRepository.create(
+      {
+        ...data,
+        image_secure_url: imageUrl, // Store the secure URL of the uploaded image
+        image_public_id: uploadedPublicId, // Store the public ID for future reference
+      },
+      userId,
+    );
     return newPlace;
   } catch (error) {
     if (uploadedPublicId) {
@@ -45,6 +49,7 @@ export const createPlace = async (
         );
       });
     }
+    throw error;
   }
 };
 
@@ -69,13 +74,21 @@ export const updatePlace = async (
   let imageUrl: string | null = null;
   let uploadedPublicId: string | null = null; //track cloudinary public id
 
-  if (fileBuffer) {
-    const uploaded = await uploadOnCloudinary(fileBuffer);
-    imageUrl = uploaded.secure_url;
-    uploadedPublicId = uploaded.public_id;
-  }
-
   try {
+    if (fileBuffer) {
+      const uploaded = await uploadOnCloudinary(fileBuffer);
+      imageUrl = uploaded.secure_url;
+      uploadedPublicId = uploaded.public_id;
+    }
+
+    //if a new image is uploaded, delete the old one from Cloudinary
+    if (place.image_public_id && uploadedPublicId) {
+      await deleteFromCloudinary(place.image_public_id).catch(() => {
+        console.error(
+          `Failed to delete old image from Cloudinary with public ID: ${place.image_public_id}`,
+        );
+      });
+    }
     const updatedPlace = await placesRepository.update(placeId, {
       ...data,
       image_secure_url: imageUrl || place.image_secure_url,
