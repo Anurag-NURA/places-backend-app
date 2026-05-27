@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { hashSync, compareSync } from "bcryptjs";
 
-import prisma from "../config/db.config.ts";
+import { prisma }from "../config/client.ts";
 import {
   uploadOnCloudinary,
   generateAcessToken,

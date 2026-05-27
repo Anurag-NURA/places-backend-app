@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 
 import upload from "../middlewares/multer.middleware.ts";
 import { verifyJWT } from "../middlewares/auth.middleware.ts";
@@ -8,7 +8,7 @@ import {
   register,
 } from "../controllers/users.controller.ts";
 
-const router = express.Router();
+const router: Router = Router();
 
 router.get("/", verifyJWT, getAllUsers);
 

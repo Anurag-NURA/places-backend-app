@@ -1,36 +1,25 @@
 import jwt from "jsonwebtoken";
-import type { Request, Response, NextFunction } from "express";
+import type { RequestHandler } from "express";
 
-import prisma from "../config/db.config.ts";
+import { prisma } from "../config/client.ts";
 import { ErrorCode } from "../exceptions/root.ts";
 import { UnauthorizedException } from "../exceptions/unauthorized.ts";
 
-interface JwtPayload {
-  userInfo: {
-    userId: string;
-    email: string;
-  };
-}
-
-export const verifyJWT = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const verifyJWT: RequestHandler = async (req, res, next) => {
   try {
     //1.extract the token from the Authorization header
     let token;
     let authHeader = req.headers.authorization;
 
     //2. if the token is not present, return an UnauthorizedException
-    if (authHeader || authHeader?.startsWith("Bearer ")) {
+    if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.split(" ")[1];
       // Extract the token from the header
     } else {
       // If the Authorization header is not present, throw an UnauthorizedException
       throw new UnauthorizedException(
         "Authorization header not provided",
-        ErrorCode.UNAUTHORIZED
+        ErrorCode.UNAUTHORIZED,
       );
     }
 
@@ -38,20 +27,28 @@ export const verifyJWT = async (
     if (!token) {
       throw new UnauthorizedException(
         "Token not provided",
-        ErrorCode.UNAUTHORIZED
+        ErrorCode.UNAUTHORIZED,
       );
     }
 
-    //3. if the token is present, verify it using jwt.verify and extract the payload
-    const payload = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as JwtPayload;
+    //3. if the token is present, decode it first and verify it using the secret key
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+
+    // 4check:
+    // i. if the decoded token is an object
+    // ii. if the decoded token is not null
+    // iii. if the decoded token has a userInfo property
+    if (typeof decoded !== "object" || !decoded || !decoded.userInfo) {
+      throw new UnauthorizedException(
+        "Invalid token payload",
+        ErrorCode.UNAUTHORIZED,
+      );
+    }
 
     //4. to get the user from payload
     const user = await prisma.user.findUnique({
       where: {
-        id: payload.userInfo.userId,
+        id: decoded.userInfo.userId,
       },
     });
 

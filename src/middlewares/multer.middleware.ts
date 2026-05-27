@@ -1,4 +1,5 @@
 import multer from "multer";
+
 import type { Multer } from "multer";
 
 const MIME_TYPE_MAP = {
@@ -7,20 +8,22 @@ const MIME_TYPE_MAP = {
   "image/jpg": "jpg",
 };
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-    // specify the directory to save uploaded files
-  },
-  filename: (req, file, cb) => {
-    cb(null, file.originalname);
-    // can customize the filename if needed
-  },
-});
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  const allowed = Object.keys(MIME_TYPE_MAP);
+
+  if(!allowed.includes(file.mimetype)) {
+    return cb(new Error("UNSUPPORTED_FILE_TYPE"), false);
+  }
+
+  cb(null, true);
+}
 
 const upload: Multer = multer({
-  limits: { fileSize: 100 * 1024 * 1024 }, // limit file size to 100MB
-  storage: storage,
+  storage,
+  fileFilter,
+  limits: { fileSize: 25 * 1024 * 1024 }, // limit file size to 100MB
 });
 
 export default upload;
