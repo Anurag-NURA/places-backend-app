@@ -58,10 +58,7 @@ class PlacesController {
       const data = req.body;
       const userId = req.user.id;
       const fileBuffer = req.file?.buffer;
-      const newPlace = await createPlace(
-        { ...data, creatorId: userId },
-        fileBuffer,
-      );
+      const newPlace = await createPlace(userId, { ...data }, fileBuffer);
       res.status(201).json({
         success: true,
         message: "Place created successfully",
